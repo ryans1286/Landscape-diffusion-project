@@ -12,6 +12,7 @@ from landlab.ca.celllab_cts import Transition, CAPlotter
 from landlab.ca.raster_cts import RasterCTS
 from matplotlib.pyplot import figure, show, plot, xlabel, ylabel, title
 import matplotlib
+import matplotlib.pyplot as plt
 from landlab.io.netcdf import write_netcdf
 import numpy as np
 import time
@@ -27,8 +28,8 @@ def transitions():
     #Transition((initial-state, initial-state, orientation), (final-state, final-state, orientation), rate, 'name')
     #Note the rate is transitions per second. 
     
-    xn_list.append(Transition((0, 1, 0), (1, 1, 0), 1., 'left-right transition'))
-    xn_list.append(Transition((1, 0, 0), (1, 1, 0), 1., 'left-right transition'))
+    xn_list.append(Transition((0, 1, 0), (1, 1, 0), .1, 'left-right transition'))
+    xn_list.append(Transition((1, 0, 0), (1, 1, 0), .1, 'left-right transition'))
     
     return xn_list
 
@@ -52,14 +53,14 @@ grid_height = 100 #number of nodes height
 #User input parameters
 uplift_rate = 0.001 #Units of m/yr
 k_initial = 0.0002 #Constant 0 < k < 1 generally
-k_final = 0.002
-total_t = 20000 #Total time 
+k_final = 0.005
+total_t = 10000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
 #Cellular automaton parameters
 plot_interval = 10. #needed if plotting cellular automaton transitions
-run_duration = 10. #The number of seconds the cellular automaton model should run per timestep dt
+run_duration = 100. #The number of seconds the cellular automaton model should run per timestep dt
 #report_interval = plot_interval #needed if plotting node state transitions
 
 #Instantiate Landlab RasterModelGrid
@@ -116,7 +117,23 @@ ca_plotter = CAPlotter(ca_diffusion_transition, cmap = my_cmap)
     #figname = 'test'
     #ca_plotter.update_plot()
 
+#Establish a steady state landscape under the initial conditions
+for i in range(n_steps):
+    z[mg.core_nodes] += uplift_rate * dt #add uplift
+    nonlinear_diffuser.run_one_step(dt) #run diffusion one step
+    flowRouter.run_one_step() #run the flow router
+    streamPower.run_one_step(dt) #run stream power incision
+    
+    if i % 50 == 0:
+        print(i * dt, "years have elapsed")
 
+print(total_t, "years have elapsed. First round complete.")
+
+figure()
+imshow_grid(mg, 'topographic__elevation')
+
+
+#Initiate the cellular automaton model
 for i in range(n_steps):
     z[mg.core_nodes] += uplift_rate * dt #add uplift
     nonlinear_diffuser.run_one_step(dt) #run diffusion one step
@@ -128,17 +145,15 @@ for i in range(n_steps):
         ca_diffusion_transition.run(current_time + plot_interval, ca_diffusion_transition.node_state, plot_each_transition = False)
         current_time += plot_interval
     #This block is really slowing me down!     
-    for j in range(len(node_state_grid)): #change diffusion values
-        if node_state_grid[i] == 1:
-            k = [k_final for node in range(mg.number_of_nodes)]
-    
+    for j in range(mg.number_of_nodes): #change diffusion values
+        if node_state_grid[j] == 1:
+            k[j] = k_final
     if i % 50 == 0:
         print(i * dt, "years have elapsed")
 
-print(total_t, "years have elapsed. First round complete.")
 
-figure('topo with diffusion')
-imshow_grid(mg, 'k_diff_transitions')
+figure()
+imshow_grid(mg, 'topographic__elevation')
 #write_netcdf('run1_hi-lo-1.nc', mg, format = 'NETCDF3_64BIT', names = 'topographic__elevation')
 
 
