@@ -47,14 +47,14 @@ xn_list = transitions()
 
 #Model geometry
 cell_dim = 2. #cell width/length in km
-grid_width = 100 #number of nodes width
-grid_height = 100 #number of nodes height
+grid_width = 400 #number of nodes width
+grid_height = 400 #number of nodes height
 
 #User input parameters
 uplift_rate = 0.001 #Units of m/yr
-k_initial = 0.0002 #Constant 0 < k < 1 generally
-k_final = 0.005
-total_t = 10000 #Total time 
+k_initial = 0.0001 #Constant 0 < k < 1 generally
+k_final = 0.001
+total_t = 100000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
@@ -140,7 +140,7 @@ for i in range(n_steps):
     flowRouter.run_one_step() #run the flow router
     streamPower.run_one_step(dt) #run stream power incision
     
-    current_time = 0. #run the cellular automaton
+    current_time = 0. #run the cellular automaton for run_duration each timestep i
     while current_time < run_duration:
         ca_diffusion_transition.run(current_time + plot_interval, ca_diffusion_transition.node_state, plot_each_transition = False)
         current_time += plot_interval
