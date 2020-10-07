@@ -26,8 +26,8 @@ def transitions():
     
     #Transition((initial-state, initial-state, orientation), (final-state, final-state, orientation), rate, 'name')
     #Note the rate is transitions per second. 
-    xn_list.append(Transition((0, 1, 0), (1, 1, 0), .1, 'left-right transition'))
-    xn_list.append(Transition((1, 0, 0), (1, 1, 0), .1, 'left-right transition'))
+    xn_list.append(Transition((0, 1, 0), (1, 1, 0), .5, 'left-right transition'))
+    xn_list.append(Transition((1, 0, 0), (1, 1, 0), .5, 'left-right transition'))
     #These transitions are the most basic and symmetrical.
     #Once a node is "seeded" with state "1", it will gradually change all the  
     #bordering nodes to state "1"
@@ -39,9 +39,9 @@ def transitions():
 
 '''INPUT PARAMETERS'''
 #Model geometry parameters
-cell_dim = 5. #cell width/length in km
-grid_width = 400 #number of nodes width
-grid_height = 400 #number of nodes height
+cell_dim = 1. #cell width/length in km
+grid_width = 100 #number of nodes width
+grid_height = 100 #number of nodes height
 
 #Diffusion and stream power input parameters
 uplift_rate = 0.001 #Units of m/yr
@@ -49,7 +49,7 @@ k_initial = 0.0001 #Constant 0 < k < 1 generally
 k_final = 0.001
 k_streampower = 0.3
 m_streampower = 0.5
-total_t = 100000 #Total time 
+total_t = 60000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
@@ -78,12 +78,12 @@ run_duration = 100. #The number of seconds the cellular automaton model should r
 #Instantiate Landlab RasterModelGrid
 mg = RasterModelGrid((grid_width, grid_height), cell_dim) #Instantiate the model space
 
-'''
-for edge in (mg.nodes_at_left_edge, mg.nodes_at_right_edge):
-    mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
-for edge in (mg.nodes_at_top_edge, mg.nodes_at_bottom_edge):
-    mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
-'''
+
+# for edge in (mg.nodes_at_left_edge, mg.nodes_at_right_edge):
+#     mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
+# for edge in (mg.nodes_at_top_edge, mg.nodes_at_bottom_edge):
+#     mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
+
 
 #Create the topographic__elevation array, fill with zeros
 z = mg.add_zeros('node', 'topographic__elevation') #Base topographic elevation is zeros
@@ -159,25 +159,26 @@ imshow_grid(mg, 'topographic__elevation')
 
 
 #Initiate the cellular automaton model
-for i in range(n_steps):
-    z[mg.core_nodes] += uplift_rate * dt #add uplift
-    nonlinear_diffuser.run_one_step(dt) #run diffusion one step
-    flowRouter.run_one_step() #run the flow router
-    streamPower.run_one_step(dt) #run stream power incision
+#Note- when running in Spyder, both figures appear at the end
+# for i in range(n_steps):
+#     z[mg.core_nodes] += uplift_rate * dt #add uplift
+#     nonlinear_diffuser.run_one_step(dt) #run diffusion one step
+#     flowRouter.run_one_step() #run the flow router
+#     streamPower.run_one_step(dt) #run stream power incision
     
-    current_time = 0. #run the cellular automaton for run_duration each timestep i
-    while current_time < run_duration:
-        ca_diffusion_transition.run(current_time + plot_interval, ca_diffusion_transition.node_state, plot_each_transition = False)
-        current_time += plot_interval
-    #This block is really slowing me down!     
-    for j in range(mg.number_of_nodes): #change diffusion values
-        if node_state_grid[j] == 1:
-            k[j] = k_final
-    if i % 50 == 0:
-        print(i * dt, "years have elapsed")
+#     current_time = 0. #run the cellular automaton for run_duration each timestep i
+#     while current_time < run_duration:
+#         ca_diffusion_transition.run(current_time + plot_interval, ca_diffusion_transition.node_state, plot_each_transition = False)
+#         current_time += plot_interval
+#     #This block is really slowing me down!     
+#     for j in range(mg.number_of_nodes): #change diffusion values
+#         if node_state_grid[j] == 1:
+#             k[j] = k_final
+#     if i % 50 == 0:
+#         print(i * dt, "years have elapsed")
 
-figure()
-imshow_grid(mg, 'topographic__elevation')
+# figure()
+# imshow_grid(mg, 'topographic__elevation')
 #write_netcdf('run1_hi-lo-1.nc', mg, format = 'NETCDF3_64BIT', names = 'topographic__elevation')
 
 
