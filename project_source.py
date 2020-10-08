@@ -46,17 +46,18 @@ grid_height = 100 #number of nodes height
 
 #Diffusion and stream power input parameters
 uplift_rate = 0.001 #Units of m/yr
-k_initial = 0.0005 #Constant 0 < k < 1 generally
-k_final = 0.005
+k_initial = 0.02 #Constant 0 < k < 1 generally
+k_final = 0.002
 t_trans = 1000 #Number of years for transition from k_initial to k_final
-trans_start_t = 10000 #Year the k transition begins
+trans_start_t = 50000 #Year the k transition begins
 k_streampower = 0.3
 m_streampower = 0.5
-total_t = 20000 #Total time 
+total_t = 100000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
 #Cellular automaton parameters
+n_seed = 10 #Number of nodes initially assigned the 1-state
 plot_interval = 10. #needed if plotting cellular automaton transitions
 run_duration = 100. #The number of seconds the cellular automaton model should run per timestep dt
 #report_interval = plot_interval #needed if plotting node state transitions
@@ -81,12 +82,6 @@ run_duration = 100. #The number of seconds the cellular automaton model should r
 #Instantiate Landlab RasterModelGrid
 mg = RasterModelGrid((grid_width, grid_height), cell_dim) #Instantiate the model space
 
-'''
-for edge in (mg.nodes_at_left_edge, mg.nodes_at_right_edge):
-    mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
-for edge in (mg.nodes_at_top_edge, mg.nodes_at_bottom_edge):
-    mg.status_at_node[edge] = FIXED_VALUE_BOUNDARY
-'''
 
 #Create the topographic__elevation array, fill with zeros
 z = mg.add_zeros('node', 'topographic__elevation') #Base topographic elevation is zeros
@@ -114,12 +109,10 @@ node_state_grid = mg.zeros('node', dtype = int)
 node_state_field = mg.add_field('node', 'k_diff_transitions', node_state_grid)
 
 #Create initial conditions for cellular automaton component
-#This is not working as intended, but does the job
-for x in range(100):
-    xRand = np.random.randint(1, grid_width)
-    yRand = np.random.randint(1, grid_height)
-    randSeed = np.where((mg.x_of_node == xRand) & (mg.y_of_node == yRand))[0]#x_of_node is the position in meters
-    node_state_grid[randSeed] = 1
+#It seeds the model space with nodes of state 1
+for x in range(n_seed):
+    rand = np.random.randint(len(mg.core_nodes))
+    node_state_grid[rand] = 1
 
 #Needed for plotting cellular automaton transitions
 #current_real_time = time.time()
@@ -152,16 +145,21 @@ for i in range(n_steps):
     flowRouter.run_one_step() #run the flow router
     streamPower.run_one_step(dt) #run stream power incision
     
+    if i == (trans_start_t // dt):
+        figure()
+        imshow_grid(mg, 'topographic__elevation')
+    
+    #This is the time-dependent diffusion component
+    #It increases k from k_initial to k_final in time t_trans
+    #Do not use this component if you plan to use the cellular automaton component
     if i >= (trans_start_t // dt) and i < ((trans_start_t + t_trans) // dt):
-        print('code gets here')
         k[mg.core_nodes] += np.abs(k_final - k_initial) / (t_trans / dt)
     
-    if i % 50 == 0:
+    if i % 100 == 0:
         print(i * dt, "years have elapsed")
 
 print(total_t, "years have elapsed. First round complete.")
 
-print(k[123])
 figure()
 imshow_grid(mg, 'topographic__elevation')
 
