@@ -24,10 +24,11 @@ import numpy as np
 def transitions():
     xn_list = []
     
-    #Transition((initial-state, initial-state, orientation), (final-state, final-state, orientation), rate, 'name')
+    #Transition((initial-state, initial-state, orientation), 
+    #               (final-state, final-state, orientation), rate, 'name')
     #Note the rate is transitions per second. 
-    xn_list.append(Transition((0, 1, 0), (1, 1, 0), .1, 'left-right transition'))
-    xn_list.append(Transition((1, 0, 0), (1, 1, 0), .1, 'left-right transition'))
+    xn_list.append(Transition((0, 1, 0), (1, 1, 0), .5, 'left-right transition'))
+    xn_list.append(Transition((1, 0, 0), (1, 1, 0), .5, 'left-right transition'))
     #These transitions are the most basic and symmetrical.
     #Once a node is "seeded" with state "1", it will gradually change all the  
     #bordering nodes to state "1"
@@ -40,16 +41,16 @@ def transitions():
 '''INPUT PARAMETERS'''
 #Model geometry parameters
 cell_dim = 5. #cell width/length in km
-grid_width = 400 #number of nodes width
-grid_height = 400 #number of nodes height
+grid_width = 100 #number of nodes width
+grid_height = 100 #number of nodes height
 
 #Diffusion and stream power input parameters
 uplift_rate = 0.001 #Units of m/yr
-k_initial = 0.0001 #Constant 0 < k < 1 generally
-k_final = 0.001
+k_initial = 0.0005 #Constant 0 < k < 1 generally
+k_final = 0.005
 k_streampower = 0.3
 m_streampower = 0.5
-total_t = 100000 #Total time 
+total_t = 10000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
@@ -115,7 +116,7 @@ node_state_field = mg.add_field('node', 'k_diff_transitions', node_state_grid)
 for x in range(100):
     xRand = np.random.randint(1, grid_width)
     yRand = np.random.randint(1, grid_height)
-    randSeed = np.where((mg.x_of_node == xRand) & (mg.y_of_node == yRand))[0]
+    randSeed = np.where((mg.x_of_node == xRand) & (mg.y_of_node == yRand))[0]#x_of_node is the position in meters
     node_state_grid[randSeed] = 1
 
 #Needed for plotting cellular automaton transitions
@@ -169,10 +170,12 @@ for i in range(n_steps):
     while current_time < run_duration:
         ca_diffusion_transition.run(current_time + plot_interval, ca_diffusion_transition.node_state, plot_each_transition = False)
         current_time += plot_interval
-    #This block is really slowing me down!     
+    #This block is really slowing me down!
+    #k[node_state_grid == 1] = k_final#try this 
     for j in range(mg.number_of_nodes): #change diffusion values
         if node_state_grid[j] == 1:
             k[j] = k_final
+    
     if i % 50 == 0:
         print(i * dt, "years have elapsed")
 
