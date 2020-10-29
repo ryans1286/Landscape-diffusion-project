@@ -8,15 +8,16 @@ Created on Thu Oct 29 15:40:28 2020
 
 import numpy as np
 import matplotlib.pyplot as plt
-from landlab import RasterModelGrid, imshow_grid
-from landlab.components import PerronNLDiffuse, FlowAccumulator, LinearDiffuser, StreamPowerEroder
+from landlab import RasterModelGrid, imshow_grid, imshow_grid_at_node
+from landlab.components import FlowAccumulator, LinearDiffuser, StreamPowerEroder
+from landlab.components import ChiFinder
 
 uplift = 0.001 #m/yr
 k_sp = 1.0e-5
 m_sp = 0.5
 n_sp = 1.0
 k_init = 0.05
-k_final = 0.005
+k_final = 0.05
 
 ncells = 150
 dxy = 50 
@@ -29,10 +30,10 @@ tmax = 1e6
 
 t = np.arange(0, tmax, dt)
 
-trans_start_t = 500000
-t_trans = 10000
+trans_start_t = 200000
+t_trans = 1000
 
-np.random.seed(0)
+np.random.seed()
 mg_noise = np.random.rand(mg.number_of_nodes) / 1000
 
 zr = mg.add_zeros('topographic__elevation', at = 'node')
@@ -46,6 +47,7 @@ k += [k_init for _ in range(mg.number_of_nodes)]
 frr = FlowAccumulator(mg)
 spr = StreamPowerEroder(mg, K_sp = k_sp, m_sp = m_sp, n_sp = n_sp, threshold_sp = 0.0)
 dfn = LinearDiffuser(mg, linear_diffusivity = k, deposit = False)
+cf = ChiFinder(mg, min_drainage_area = 1000., reference_concavity = 0.5)
 
 
 for i in t:
@@ -56,14 +58,20 @@ for i in t:
     total_t += dt
     if total_t >= (trans_start_t) and i < (trans_start_t + t_trans):
          k[mg.core_nodes] += np.abs(k_final - k_init) / (t_trans / dt)
-    
+    if total_t % 10000 == 0:
+        print(total_t)
+        
+cf.calculate_chi()
+
+
 plt.figure(1)
 imshow_grid(mg, 'topographic__elevation', grid_units = ('m', 'm'), var_name = 'Elevation (m)')
-title_text = f"$K_{{sp}}$={k_sp}; $K_{{init}}$={k_init}; $K_{{final}}$={k_final}; $time$={total_t}; $dx$={dxy}"
+title_text = f"$K_{{sp}}$={k_sp}; $K_{{init}}$={k_init}; $K_{{final}}$={k_final}; $t_trans$={trans_start_t}; $dx$={dxy}"
 plt.title(title_text)
 
 max_elev = np.max(zr)
-suptitle_text = "Maximum elevation is " + str(max_elev)
+suptitle_text = "Max Elevation = " + str(np.round(max_elev, 2))
+plt.suptitle(suptitle_text)
 
 print("Maximum elevation is ", np.max(zr))
     
@@ -72,13 +80,14 @@ indices = np.where(mg.status_at_node[mg.at_node["flow__receiver_node"]] == 0)
 plt.loglog(
     mg.at_node["drainage_area"][indices],
     mg.at_node["topographic__steepest_slope"][indices],
-    "b.",
-)
+    "b.",)
 
 plt.ylabel("Topographic slope")
 plt.xlabel("Drainage area (m^2)")
 plt.title(title_text)
-    
+
+plt.figure(3)
+imshow_grid_at_node(mg, cf.masked_chi_indices, color_for_closed = None, cmap = 'winter')
     
     
     
