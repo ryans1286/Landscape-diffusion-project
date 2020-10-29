@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Oct 29 15:40:28 2020
+
+@author: ryanstrickland
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from landlab import RasterModelGrid, imshow_grid
+from landlab.components import PerronNLDiffuse, FlowAccumulator, LinearDiffuser, StreamPowerEroder
+
+uplift = 0.001 #m/yr
+k_sp = 1.0e-5
+m_sp = 0.5
+n_sp = 1.0
+k_init = 0.05
+k_final = 0.005
+
+ncells = 150
+dxy = 50 
+
+mg = RasterModelGrid((ncells, ncells), dxy)
+
+dt = 1000
+total_t = 0
+tmax = 1e6
+
+t = np.arange(0, tmax, dt)
+
+trans_start_t = 500000
+t_trans = 10000
+
+np.random.seed(0)
+mg_noise = np.random.rand(mg.number_of_nodes) / 1000
+
+zr = mg.add_zeros('topographic__elevation', at = 'node')
+zr += mg_noise
+
+k = mg.zeros('node', dtype = float)
+k += [k_init for _ in range(mg.number_of_nodes)]
+#k_field = mg.add_field('node', 'diffusivity', k_hs, noclobber = False)
+
+
+frr = FlowAccumulator(mg)
+spr = StreamPowerEroder(mg, K_sp = k_sp, m_sp = m_sp, n_sp = n_sp, threshold_sp = 0.0)
+dfn = LinearDiffuser(mg, linear_diffusivity = k, deposit = False)
+
+
+for i in t:
+    zr[mg.core_nodes] += uplift * dt
+    dfn.run_one_step(dt)
+    frr.run_one_step()
+    spr.run_one_step(dt)
+    total_t += dt
+    if total_t >= (trans_start_t) and i < (trans_start_t + t_trans):
+         k[mg.core_nodes] += np.abs(k_final - k_init) / (t_trans / dt)
+    
+plt.figure(1)
+imshow_grid(mg, 'topographic__elevation', grid_units = ('m', 'm'), var_name = 'Elevation (m)')
+title_text = f"$K_{{sp}}$={k_sp}; $K_{{init}}$={k_init}; $K_{{final}}$={k_final}; $time$={total_t}; $dx$={dxy}"
+plt.title(title_text)
+
+max_elev = np.max(zr)
+suptitle_text = "Maximum elevation is " + str(max_elev)
+
+print("Maximum elevation is ", np.max(zr))
+    
+plt.figure(2)
+indices = np.where(mg.status_at_node[mg.at_node["flow__receiver_node"]] == 0)
+plt.loglog(
+    mg.at_node["drainage_area"][indices],
+    mg.at_node["topographic__steepest_slope"][indices],
+    "b.",
+)
+
+plt.ylabel("Topographic slope")
+plt.xlabel("Drainage area (m^2)")
+plt.title(title_text)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

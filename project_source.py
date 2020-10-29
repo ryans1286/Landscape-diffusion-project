@@ -5,7 +5,7 @@ Created on Mon Oct  5 15:07:48 2020
 @author: rstrickland
 """
 
-from landlab.components import FlowAccumulator, FastscapeEroder, PerronNLDiffuse
+from landlab.components import FlowAccumulator, FastscapeEroder, PerronNLDiffuse, LinearDiffuser
 from landlab.plot import imshow_grid
 from landlab import RasterModelGrid#, load_params
 from landlab.ca.celllab_cts import Transition, CAPlotter
@@ -40,19 +40,19 @@ def transitions():
 
 '''INPUT PARAMETERS'''
 #Model geometry parameters
-cell_dim = 5. #cell width/length in km
-grid_width = 100 #number of nodes width
-grid_height = 100 #number of nodes height
+cell_dim = 1 #cell width/length in km
+grid_width = 200 #number of nodes width
+grid_height = 200 #number of nodes height
 
 #Diffusion and stream power input parameters
 uplift_rate = 0.001 #Units of m/yr
 k_initial = 0.02 #Constant 0 < k < 1 generally
-k_final = 0.002
+k_final = 0.02
 t_trans = 1000 #Number of years for transition from k_initial to k_final
-trans_start_t = 50000 #Year the k transition begins
+trans_start_t = 25000 #Year the k transition begins
 k_streampower = 0.3
 m_streampower = 0.5
-total_t = 100000 #Total time 
+total_t = 20000 #Total time 
 dt =  100 #Timestep size
 n_steps = total_t // dt #The number of steps in the model run
 
@@ -126,6 +126,7 @@ mg.set_fixed_value_boundaries_at_grid_edges(True, True, True, True)
 
 '''SETUP THE COMPONENTS'''
 #Setup the modules
+linear_diffuser = LinearDiffuser(mg, linear_diffusivity = .2)
 nonlinear_diffuser = PerronNLDiffuse(mg, nonlinear_diffusivity = k)
 flowRouter = FlowAccumulator(mg)
 streamPower = FastscapeEroder(mg, K_sp = k_streampower, m_sp = m_streampower)
@@ -141,19 +142,21 @@ ca_plotter = CAPlotter(ca_diffusion_transition, cmap = my_cmap)
 #Establish a steady state landscape under the initial conditions
 for i in range(n_steps):
     z[mg.core_nodes] += uplift_rate * dt #add uplift
-    nonlinear_diffuser.run_one_step(dt) #run diffusion one step
+    # for j in range(10):
+    #     nonlinear_diffuser.run_one_step(dt//10) #run diffusion one step
+    linear_diffuser.run_one_step(dt)
     flowRouter.run_one_step() #run the flow router
     streamPower.run_one_step(dt) #run stream power incision
     
-    if i == (trans_start_t // dt):
-        figure()
-        imshow_grid(mg, 'topographic__elevation')
+    # if i == (trans_start_t // dt):
+    #     figure()
+    #     imshow_grid(mg, 'topographic__elevation')
     
-    #This is the time-dependent diffusion component
-    #It increases k from k_initial to k_final in time t_trans
-    #Do not use this component if you plan to use the cellular automaton component
-    if i >= (trans_start_t // dt) and i < ((trans_start_t + t_trans) // dt):
-        k[mg.core_nodes] += np.abs(k_final - k_initial) / (t_trans / dt)
+    # #This is the time-dependent diffusion component
+    # #It increases k from k_initial to k_final in time t_trans
+    # #Do not use this component if you plan to use the cellular automaton component
+    # if i >= (trans_start_t // dt) and i < ((trans_start_t + t_trans) // dt):
+    #     k[mg.core_nodes] += np.abs(k_final - k_initial) / (t_trans / dt)
     
     if i % 100 == 0:
         print(i * dt, "years have elapsed")
